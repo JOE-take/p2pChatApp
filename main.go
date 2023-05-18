@@ -13,47 +13,66 @@ import (
 	"github.com/libp2p/go-libp2p/core/crypto"
 	"github.com/libp2p/go-libp2p/core/network"
 	"github.com/libp2p/go-libp2p/core/peer"
-	multiaddr "github.com/multiformats/go-multiaddr"
+	"github.com/multiformats/go-multiaddr"
 )
 
 func main() {
-	//ノードの作成
-
-	
+	//引数で指定されたポート番号のすべてのIP
 	sourceMultiAddr, _ := multiaddr.NewMultiaddr(fmt.Sprintf("/ip4/0.0.0.0/tcp/%s", string(os.Args[1])))
-	r := rand.Reader
 
-	// Creates a new RSA key pair for this host.
+	//新しいノードの作成で使用する秘密鍵を生成
+	r := rand.Reader
 	prvKey, _, err := crypto.GenerateKeyPairWithReader(crypto.RSA, 2048, r)
 	if err != nil {
 		panic(err)
 	}
+
+	//sourceMultiAddrをListenし、prvKeyを秘密鍵に持つノードを作成
 	node, err := libp2p.New(
 		libp2p.ListenAddrs(sourceMultiAddr),
 		libp2p.Identity(prvKey))
-	if  err != nil {
+	if err != nil {
 		panic(err)
 	}
 	defer node.Close()
-	fmt.Println("node address", node.Addrs())
 
-	//作成したノードのpeerIDとアドレスをpeerInfoに入れる
+	//ノードのAddrInfoを作成
 	peerInfo := peer.AddrInfo{
-		ID: node.ID(),
+		ID:    node.ID(),
 		Addrs: node.Addrs(),
 	}
 
-	//peerInfoを元に、p2pアドレスを得る。
+	//IPアドレスからP2Pアドレスにする
 	addrs, err := peer.AddrInfoToP2pAddrs(&peerInfo)
 	if err != nil {
 		panic(err)
 	}
-	
-	fmt.Println("listen on :", sourceMultiAddr)
-	fmt.Println("libp2p node address:", addrs[0])	
 
+	fmt.Println("libp2p node address:", addrs[1])
+
+	/*
+		peerChan := initMDNS(node, "aikotoba")
+
+		for {
+			peer := <-peerChan
+			fmt.Println("Peer: ", peer, "が見つかりました。接続します。")
+
+			if err := node.Connect(context.Background(), peer); err != nil {
+				fmt.Println("接続失敗、続行")
+				continue
+			}
+
+			stream, err := node.NewStream(context.Background(), peer.ID, "chat/1.1.0")
+			if err != nil {
+				panic(err)
+			}
+
+			rw := bufio.NewReadWriter(bufio.NewReader(stream), bufio.NewWriter(stream))
+			go streamReader(rw)
+			go streamWriter(rw)
+		}
+	*/
 	if len(os.Args) > 2 {
-		fmt.Println("connecting")
 		addr, err := multiaddr.NewMultiaddr(os.Args[2])
 		if err != nil {
 			panic(err)
@@ -63,7 +82,7 @@ func main() {
 		if err != nil {
 			panic(err)
 		}
-		
+
 		if err := node.Connect(context.Background(), *info); err != nil {
 			panic(err)
 		}
@@ -73,38 +92,37 @@ func main() {
 			panic(err)
 		}
 
-		rw := bufio.NewReadWriter(bufio.NewReader(stream), bufio.NewWriter(stream))	
+		rw := bufio.NewReadWriter(bufio.NewReader(stream), bufio.NewWriter(stream))
 		go streamReader(rw)
 		go streamWriter(rw)
 	} else {
-		fmt.Println("waiting")
 		node.SetStreamHandler("chat/1.1.0", handleStream)
 	}
-		//プロセスの停止まで待つ
-		ch := make(chan os.Signal, 1)
-		signal.Notify(ch, syscall.SIGINT, syscall.SIGTERM)
-		s := <-ch
-		fmt.Println("shut down: ", s)
+
+	//プロセスの停止まで待つ
+	ch := make(chan os.Signal, 1)
+	signal.Notify(ch, syscall.SIGINT, syscall.SIGTERM)
+	s := <-ch
+	fmt.Println("shut down: ", s)
 }
 
-func handleStream(stream network.Stream){
+func handleStream(stream network.Stream) {
 	fmt.Println("new Stream open")
 	rw := bufio.NewReadWriter(bufio.NewReader(stream), bufio.NewWriter(stream))
 	go streamReader(rw)
 	go streamWriter(rw)
 }
 
-func streamWriter(rw *bufio.ReadWriter){
+func streamWriter(rw *bufio.ReadWriter) {
 	scanner := bufio.NewScanner(os.Stdin)
 	w := rw.Writer
 	for {
-	scanner.Scan()
-	fmt.Println(scanner.Text())
-	w.Write(scanner.Bytes())
+		scanner.Scan()
+		w.Write(scanner.Bytes())
 	}
 }
 
-func streamReader(rw *bufio.ReadWriter){
+func streamReader(rw *bufio.ReadWriter) {
 	r := rw.Reader
 	buf := make([]byte, 128)
 	for {
