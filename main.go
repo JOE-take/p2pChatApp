@@ -6,8 +6,6 @@ import (
 	"crypto/rand"
 	"fmt"
 	"os"
-	"os/signal"
-	"syscall"
 
 	"github.com/libp2p/go-libp2p"
 	"github.com/libp2p/go-libp2p/core/crypto"
@@ -36,6 +34,8 @@ func main() {
 	}
 	defer node.Close()
 
+	node.SetStreamHandler("chat/1.2.0", handleStream)
+
 	//ノードのAddrInfoを作成
 	peerInfo := peer.AddrInfo{
 		ID:    node.ID(),
@@ -50,44 +50,18 @@ func main() {
 
 	fmt.Println("libp2p node address:", addrs[1])
 
-	/*
-		peerChan := initMDNS(node, "aikotoba")
+	peerChan := initMDNS(node, "aikotoba")
 
-		for {
-			peer := <-peerChan
-			fmt.Println("Peer: ", peer, "が見つかりました。接続します。")
+	for {
+		peer := <-peerChan
+		fmt.Println("peer found: ", peer, "connecting")
 
-			if err := node.Connect(context.Background(), peer); err != nil {
-				fmt.Println("接続失敗、続行")
-				continue
-			}
-
-			stream, err := node.NewStream(context.Background(), peer.ID, "chat/1.1.0")
-			if err != nil {
-				panic(err)
-			}
-
-			rw := bufio.NewReadWriter(bufio.NewReader(stream), bufio.NewWriter(stream))
-			go streamReader(rw)
-			go streamWriter(rw)
-		}
-	*/
-	if len(os.Args) > 2 {
-		addr, err := multiaddr.NewMultiaddr(os.Args[2])
-		if err != nil {
-			panic(err)
+		if err := node.Connect(context.Background(), peer); err != nil {
+			fmt.Println("failt to connect, continue")
+			continue
 		}
 
-		info, err := peer.AddrInfoFromP2pAddr(addr)
-		if err != nil {
-			panic(err)
-		}
-
-		if err := node.Connect(context.Background(), *info); err != nil {
-			panic(err)
-		}
-
-		stream, err := node.NewStream(context.Background(), info.ID, "chat/1.1.0")
+		stream, err := node.NewStream(context.Background(), peer.ID, "chat/1.2.0")
 		if err != nil {
 			panic(err)
 		}
@@ -95,15 +69,7 @@ func main() {
 		rw := bufio.NewReadWriter(bufio.NewReader(stream), bufio.NewWriter(stream))
 		go streamReader(rw)
 		go streamWriter(rw)
-	} else {
-		node.SetStreamHandler("chat/1.1.0", handleStream)
 	}
-
-	//プロセスの停止まで待つ
-	ch := make(chan os.Signal, 1)
-	signal.Notify(ch, syscall.SIGINT, syscall.SIGTERM)
-	s := <-ch
-	fmt.Println("shut down: ", s)
 }
 
 func handleStream(stream network.Stream) {
@@ -119,6 +85,7 @@ func streamWriter(rw *bufio.ReadWriter) {
 	for {
 		scanner.Scan()
 		w.Write(scanner.Bytes())
+		w.Flush()
 	}
 }
 
