@@ -67,36 +67,10 @@ func main() {
 		}
 
 		rw := bufio.NewReadWriter(bufio.NewReader(stream), bufio.NewWriter(stream))
-		go streamReader(rw)
-		go streamWriter(rw)
 	}
 }
 
 func handleStream(stream network.Stream) {
 	fmt.Println("new Stream open")
 	rw := bufio.NewReadWriter(bufio.NewReader(stream), bufio.NewWriter(stream))
-	go streamReader(rw)
-	go streamWriter(rw)
-}
-
-func streamWriter(rw *bufio.ReadWriter) {
-	scanner := bufio.NewScanner(os.Stdin)
-	w := rw.Writer
-	for {
-		scanner.Scan()
-		w.Write(scanner.Bytes())
-		w.Flush()
-	}
-}
-
-func streamReader(rw *bufio.ReadWriter) {
-	r := rw.Reader
-	buf := make([]byte, 128)
-	for {
-		_, err := r.Read(buf)
-		if err != nil {
-			panic(err)
-		}
-		fmt.Println(string(buf))
-	}
 }
