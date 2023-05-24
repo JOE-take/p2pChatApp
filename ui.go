@@ -2,10 +2,16 @@ package main
 
 import (
 	"bufio"
+	"fmt"
 	"github.com/gdamore/tcell/v2"
 	"github.com/rivo/tview"
 	"os"
 )
+
+type UI struct {
+	tv  *tview.TextView
+	app *tview.Application
+}
 
 func runUI(rw *bufio.ReadWriter) {
 
@@ -39,22 +45,26 @@ func runUI(rw *bufio.ReadWriter) {
 		AddItem(textView, 0, 2, false).
 		AddItem(inputField, 3, 0, true)
 
+	//ui := UI{
+	//	textView,
+	//	app,
+	//}
+
+	//go streamReader(rw, ui)
 	if err := app.SetRoot(flex, true).Run(); err != nil {
 		panic(err)
 	}
 }
 
 func streamReader(rw *bufio.ReadWriter, ui UI) {
-	tv := ui.tv
-	app := ui.app
+	//tv := ui.tv
+	//app := ui.app
 	buf := make([]byte, 128)
 	for {
 		read, err := rw.Read(buf)
 		if err != nil {
 			panic(err)
 		}
-		app.QueueUpdateDraw(func() {
-			tv.SetText(tv.GetText(true) + string(buf[:read]))
-		})
+		fmt.Println(read)
 	}
 }

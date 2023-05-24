@@ -67,10 +67,12 @@ func main() {
 		}
 
 		rw := bufio.NewReadWriter(bufio.NewReader(stream), bufio.NewWriter(stream))
+		runUI(rw)
 	}
 }
 
 func handleStream(stream network.Stream) {
 	fmt.Println("new Stream open")
 	rw := bufio.NewReadWriter(bufio.NewReader(stream), bufio.NewWriter(stream))
+	runUI(rw)
 }
