@@ -1,3 +1,7 @@
+/*
+	TviewとStreamの兼ね合いが上手く出来なかったので諦めた名残
+*/
+
 package main
 
 import (
@@ -6,6 +10,7 @@ import (
 	"github.com/gdamore/tcell/v2"
 	"github.com/rivo/tview"
 	"os"
+	"time"
 )
 
 type UI struct {
@@ -14,7 +19,6 @@ type UI struct {
 }
 
 func runUI(rw *bufio.ReadWriter) {
-
 	app := tview.NewApplication()
 
 	textView := tview.NewTextView()
@@ -26,11 +30,17 @@ func runUI(rw *bufio.ReadWriter) {
 	inputField.SetTitle("sendMessage").
 		SetBorder(true)
 
+	ui := UI{
+		tv:  textView,
+		app: app,
+	}
+	go streamReader(rw, &ui)
+
 	inputField.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
+		w := rw.Writer
 		switch event.Key() {
 		case tcell.KeyEnter:
-			rw.WriteString(inputField.GetText())
-			rw.Flush()
+			w.WriteString(inputField.GetText())
 			textView.SetText(textView.GetText(true) + inputField.GetText() + "\n")
 			inputField.SetText("")
 			return nil
@@ -45,26 +55,29 @@ func runUI(rw *bufio.ReadWriter) {
 		AddItem(textView, 0, 2, false).
 		AddItem(inputField, 3, 0, true)
 
-	//ui := UI{
-	//	textView,
-	//	app,
-	//}
-
-	//go streamReader(rw, ui)
 	if err := app.SetRoot(flex, true).Run(); err != nil {
 		panic(err)
 	}
 }
 
-func streamReader(rw *bufio.ReadWriter, ui UI) {
-	//tv := ui.tv
-	//app := ui.app
-	buf := make([]byte, 128)
+func streamReader(rw *bufio.ReadWriter, ui *UI) {
+	app := ui.app
+	tv := ui.tv
 	for {
-		read, err := rw.Read(buf)
+		time.Sleep(time.Millisecond * 100)
+		app.QueueUpdateDraw(func() {
+			tv.SetText(tv.GetText(true) + "fuck\n")
+		})
+		str, err := rw.ReadString('\n')
 		if err != nil {
 			panic(err)
 		}
-		fmt.Println(read)
+		if str == "" {
+			continue
+		}
+
+		if str != "\n" {
+			fmt.Fprintln(tv, str)
+		}
 	}
 }

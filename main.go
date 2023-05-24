@@ -64,15 +64,38 @@ func main() {
 		stream, err := node.NewStream(context.Background(), peer.ID, "chat/1.2.0")
 		if err != nil {
 			panic(err)
+		} else {
+			rw := bufio.NewReadWriter(bufio.NewReader(stream), bufio.NewWriter(stream))
+			go streamRead(rw)
+			go streamWrite(rw)
 		}
-
-		rw := bufio.NewReadWriter(bufio.NewReader(stream), bufio.NewWriter(stream))
-		runUI(rw)
 	}
 }
 
 func handleStream(stream network.Stream) {
 	fmt.Println("new Stream open")
 	rw := bufio.NewReadWriter(bufio.NewReader(stream), bufio.NewWriter(stream))
-	runUI(rw)
+	go streamRead(rw)
+	go streamWrite(rw)
+}
+
+func streamWrite(rw *bufio.ReadWriter) {
+	scanner := bufio.NewScanner(os.Stdin)
+	for {
+		scanner.Scan()
+		rw.WriteString(scanner.Text())
+		rw.Flush()
+	}
+}
+
+func streamRead(rw *bufio.ReadWriter) {
+	buf := make([]byte, 128)
+	for {
+		read, err := rw.Read(buf)
+		if err != nil {
+			panic(err)
+		}
+		str := string(buf[:read])
+		fmt.Printf("\x1b[32m%s\x1b[0m\n", str)
+	}
 }
