@@ -50,21 +50,26 @@ func main() {
 
 	fmt.Println("libp2p node address:", addrs[1])
 
+	//mDNSから見つかったノード受け取るためのチャネル
 	peerChan := initMDNS(node, "aikotoba")
 
 	for {
+		//見つかったノードをpeerで受け取る
 		peer := <-peerChan
 		fmt.Println("peer found: ", peer, "connecting")
 
+		//peerに接続
 		if err := node.Connect(context.Background(), peer); err != nil {
-			fmt.Println("failt to connect, continue")
+			fmt.Println("failed to connect, continue")
 			continue
 		}
 
+		//ストリームを開始
 		stream, err := node.NewStream(context.Background(), peer.ID, "chat/1.2.0")
 		if err != nil {
 			panic(err)
 		} else {
+			//正しくストリームが開ければ、データの読み書きを開始
 			rw := bufio.NewReadWriter(bufio.NewReader(stream), bufio.NewWriter(stream))
 			go streamRead(rw)
 			go streamWrite(rw)
@@ -72,6 +77,7 @@ func main() {
 	}
 }
 
+// ストリームの開始が要求された時に呼ばれる
 func handleStream(stream network.Stream) {
 	fmt.Println("new Stream open")
 	rw := bufio.NewReadWriter(bufio.NewReader(stream), bufio.NewWriter(stream))
